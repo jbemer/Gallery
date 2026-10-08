@@ -403,6 +403,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             } else {
                 mOpenedSubfolders.removeAt(mOpenedSubfolders.lastIndex)
                 mCurrentPathPrefix = mOpenedSubfolders.last()
+                refreshMenuItems()
                 setupAdapter(mDirs)
                 true
             }
@@ -451,7 +452,10 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         if (!mIsThirdPartyIntent) {
             binding.mainMenu.requireToolbar().menu.apply {
                 findItem(R.id.column_count).isVisible = config.viewTypeFolders == VIEW_TYPE_GRID
-                findItem(R.id.set_as_default_folder).isVisible = !config.defaultFolder.isEmpty()
+                findItem(R.id.set_as_default_folder).isVisible = config.groupDirectSubfolders
+                        && mCurrentPathPrefix.isNotEmpty()
+                        && !mCurrentPathPrefix.equals(config.defaultFolder.trimEnd('/'), true)
+                findItem(R.id.unset_as_default_folder).isVisible = config.defaultFolder.isNotEmpty()
                 findItem(R.id.open_recycle_bin).isVisible =
                     config.useRecycleBin && !config.showRecycleBinAtFolders
                 findItem(R.id.more_apps_from_us).isVisible =
@@ -507,7 +511,8 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 R.id.create_new_folder -> createNewFolder()
                 R.id.open_recycle_bin -> openRecycleBin()
                 R.id.column_count -> changeColumnCount()
-                R.id.set_as_default_folder -> setAsDefaultFolder()
+                R.id.set_as_default_folder -> setCurrentFolderAsDefault()
+                R.id.unset_as_default_folder -> setAsDefaultFolder()
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                 R.id.settings -> launchSettings()
                 R.id.about -> launchAbout()
@@ -1410,6 +1415,12 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         mDirs = dirs.clone() as ArrayList<Directory>
     }
 
+    private fun setCurrentFolderAsDefault() {
+        config.defaultFolder = mCurrentPathPrefix
+        refreshMenuItems()
+        android.widget.Toast.makeText(this, "Default folder: $mCurrentPathPrefix", android.widget.Toast.LENGTH_LONG).show()
+    }
+
     private fun setAsDefaultFolder() {
         config.defaultFolder = ""
         refreshMenuItems()
@@ -1446,6 +1457,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             val defaultPath = config.defaultFolder.trimEnd('/')
             mCurrentPathPrefix = defaultPath
             mOpenedSubfolders = arrayListOf("", defaultPath)
+            refreshMenuItems()
             return
         }
 
@@ -1529,6 +1541,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 } else {
                     mCurrentPathPrefix = path
                     mOpenedSubfolders.add(path)
+                    refreshMenuItems()
                     setupAdapter(mDirs, "")
                 }
             }.apply {
