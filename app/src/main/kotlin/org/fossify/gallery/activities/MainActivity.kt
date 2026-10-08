@@ -1427,6 +1427,19 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             return
         }
 
+        // in "Group direct subfolders" mode start inside the default folder, so its direct subfolders are shown
+        if (
+            config.groupDirectSubfolders
+            && config.defaultFolder != RECYCLE_BIN
+            && config.defaultFolder != FAVORITES
+            && defaultDir.listFiles()?.any { it.isDirectory } != false
+        ) {
+            val defaultPath = config.defaultFolder.trimEnd('/')
+            mCurrentPathPrefix = defaultPath
+            mOpenedSubfolders = arrayListOf("", defaultPath)
+            return
+        }
+
         Intent(this, MediaActivity::class.java).apply {
             putExtra(DIRECTORY, config.defaultFolder)
             handleMediaIntent(this)
@@ -1500,7 +1513,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             ) {
                 val clickedDir = it as Directory
                 val path = clickedDir.path
-                if (clickedDir.subfoldersCount == 1 || !config.groupDirectSubfolders) {
+                if ((clickedDir.subfoldersCount == 1 && clickedDir.containsMediaFilesDirectly) || !config.groupDirectSubfolders) {
                     if (path != config.tempFolderPath) {
                         itemClicked(path)
                     }

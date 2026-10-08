@@ -268,7 +268,11 @@ fun Context.getDirsToShow(
             it.subfoldersMediaCount = it.mediaCnt
         }
 
-        val filledDirs = fillWithSharedDirectParents(dirs)
+        val filledDirs = if (currentPathPrefix.isEmpty()) {
+            fillWithSharedDirectParents(dirs)
+        } else {
+            fillWithMissingParentsUnderPrefix(dirs, currentPathPrefix)
+        }
         val parentDirs = getDirectParentSubfolders(filledDirs, currentPathPrefix)
         updateSubfolderCounts(filledDirs, parentDirs)
 
@@ -356,6 +360,53 @@ fun Context.fillWithSharedDirectParents(dirs: ArrayList<Directory>): ArrayList<D
     return allDirs
 }
 
+/**
+ * Used when a folder is opened in "Group direct subfolders" mode (currentPathPrefix is not empty).
+ * Makes sure that every intermediate folder located strictly between [currentPathPrefix] and a deeper
+ * folder exists in the returned list, even if it has no media files directly inside it.
+ * Without it, e.g. DCIM/Corse/Corse2025/Lieux1 would be dropped while browsing DCIM, because its
+ * direct parent (Corse2025) is not in the list and so Corse would never be shown as a child of DCIM.
+ * Parents are created deepest first so that their media counts are aggregated only once.
+ */
+fun Context.fillWithMissingParentsUnderPrefix(
+    dirs: ArrayList<Directory>,
+    currentPathPrefix: String
+): ArrayList<Directory> {
+    val prefix = currentPathPrefix.trimEnd('/')
+    val allDirs = ArrayList<Directory>(dirs)
+    val missingParents = LinkedHashSet<String>()
+    for (dir in dirs) {
+        if (dir.path == RECYCLE_BIN || dir.path == FAVORITES) {
+            continue
+        }
+
+        var parent = File(dir.path).parent
+        while (
+            parent != null
+            && parent.length > prefix.length
+            && parent.startsWith("$prefix/", true)
+        ) {
+            if (dirs.none { it.path.equals(parent, true) }) {
+                missingParents.add(parent)
+            }
+            parent = File(parent).parent
+        }
+    }
+
+    missingParents
+        .sortedByDescending { it.length }
+        .forEach { addParentWithoutMediaFiles(allDirs, it) }
+    return allDirs
+}
+
+private fun String.isStrictAncestorOf(path: String): Boolean {
+    if (this == RECYCLE_BIN || this == FAVORITES || this.isEmpty()) {
+        return false
+    }
+
+    return path.length > length && path.startsWith(trimEnd('/') + "/", true)
+}
+
 fun Context.getDirectParentSubfolders(
     dirs: ArrayList<Directory>,
     currentPathPrefix: String
@@ -385,6 +436,13 @@ fun Context.getDirectParentSubfolders(
             || File(path).parent.equals(currentPathPrefix, true)
         ) {
             currentPaths.add(path)
+        } else if (
+            currentPathPrefix.isEmpty()
+            && folders.any { it.isStrictAncestorOf(path) }
+        ) {
+            // already shown inside one of its ancestors, even if some intermediate folders have no media files
+            // e.g. DCIM/Corse/Corse2025 must stay under DCIM, not be promoted to the top level
+            continue
         } else if (
             folders.any {
                 !it.equals(path, true) && (File(path).parent.equals(it, true)
@@ -461,7 +519,7 @@ fun Context.updateSubfolderCounts(
             }
 
             if (
-                child.path.startsWith(parentDir.path, true)
+                child.path.startsWith(parentDir.path.trimEnd('/') + "/", true)
                 && parentDir.path.length > longestSharedPath.length
             ) {
                 longestSharedPath = parentDir.path
@@ -479,7 +537,8 @@ fun Context.updateSubfolderCounts(
                     subfoldersCount++
                 }
 
-                if (path != child.path) {
+                // folders without media files directly inside already hold the sum of their children
+                if (path != child.path && child.containsMediaFilesDirectly) {
                     subfoldersMediaCount += child.mediaCnt
                 }
             }

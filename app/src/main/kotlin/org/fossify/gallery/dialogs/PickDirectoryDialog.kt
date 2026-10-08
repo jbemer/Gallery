@@ -232,7 +232,7 @@ class PickDirectoryDialog(
         val adapter = DirectoryAdapter(activity, dirs.clone() as ArrayList<Directory>, null, binding.directoriesGrid, true) {
             val clickedDir = it as Directory
             val path = clickedDir.path
-            if (clickedDir.subfoldersCount == 1 || !activity.config.groupDirectSubfolders) {
+            if ((clickedDir.subfoldersCount == 1 && clickedDir.containsMediaFilesDirectly) || !activity.config.groupDirectSubfolders) {
                 if (isPickingCopyMoveDestination && path.trimEnd('/') == sourcePath) {
                     activity.toast(org.fossify.commons.R.string.source_and_destination_same)
                     return@DirectoryAdapter
