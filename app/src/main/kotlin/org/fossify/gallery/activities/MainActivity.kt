@@ -1427,15 +1427,6 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     }
 
     private fun openDefaultFolder() {
-        // TEMPORARY DIAGNOSTIC
-        run {
-            val dbgDir = File(config.defaultFolder)
-            val dbgMsg = "DBG default='${config.defaultFolder}' group=${config.groupDirectSubfolders} " +
-                    "exists=${dbgDir.exists()} isDir=${dbgDir.isDirectory} " +
-                    "subdirs=${dbgDir.listFiles()?.count { it.isDirectory } ?: -1}"
-            android.widget.Toast.makeText(this, dbgMsg, android.widget.Toast.LENGTH_LONG).show()
-        }
-
         if (config.defaultFolder.isEmpty()) {
             return
         }
