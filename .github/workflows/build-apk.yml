@@ -1,0 +1,25 @@
+name: Build APK (manuel)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build foss debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleFossDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gallery-debug-apk
+          path: app/build/outputs/apk/foss/debug/*.apk
